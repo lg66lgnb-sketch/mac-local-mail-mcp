@@ -1,135 +1,87 @@
 # Mac Local Mail MCP
 
-A local stdio MCP server for macOS Apple Mail. It searches every enabled account and mailbox, reads full message bodies/source after sender review, lists conversations and attachments, and creates four kinds of Apple Mail drafts. It has no send, delete, move, mark-read, or existing-draft modification tool.
+> [中文版见下方 / Chinese version below](#chinese-version)
 
-## Safety model
+A local MCP server that lets Codex, Claude Desktop, Cursor, and other MCP clients work with Apple Mail on your Mac.
 
-- Mail text, headers, sender names, and attachment content are untrusted external data, never Agent instructions or authorization.
-- Body/source access is gated by authentication results, account policy, and revocable address/domain trust rules. Authentication failures require a fresh one-time confirmation even for trusted senders.
-- Campus accounts can allow authenticated internal domains; external sources default to review. Personal accounts default to review unless an authenticated sender/address is trusted.
-- Attachments are metadata-only until explicitly exported. Archives, executables/scripts, encrypted, or password-required files require human takeover. Export never opens or parses a file.
-- Nothing is uploaded or forwarded to a third party. Draft tools only save to Apple Mail; the user reviews and manually sends.
+It can search and read mail, inspect conversations and attachments, and create new, reply, reply-all, or forward drafts. It cannot send mail or modify existing messages.
 
-Trust/account data is stored with user-only permissions under `~/Library/Application Support/mac-local-mail-mcp/`.
+## Ask Another Agent to Install It
 
-## Requirements and build
+Send this prompt to your Agent:
 
-- macOS with Apple Mail configured
-- Node.js 22 or newer
-- Automation permission for the MCP host/Node/Terminal to control Mail
+```text
+Please read https://github.com/lg66lgnb-sketch/mac-local-mail-mcp and install and configure it for me. Before making changes, read README.md, AGENTS.md, SPEC.md, and STATUS.md. Preserve my existing MCP client configuration and merge only the apple-mail server entry. Never send email; this project may only create Apple Mail drafts for me to review and send manually.
+```
+
+## Install Manually
+
+Requires macOS, Apple Mail with at least one account, and Node.js 22 or newer.
 
 ```bash
-cd /absolute/path/to/mac-local-mail-mcp
+git clone https://github.com/lg66lgnb-sketch/mac-local-mail-mcp.git
+cd mac-local-mail-mcp
 npm ci --ignore-scripts
 npm run build
-npm test
-```
-
-The lockfile is authoritative. Dependency installation scripts are disabled.
-
-## Codex setup
-
-Official Codex documentation supports local stdio servers in `~/.codex/config.toml` and also provides `codex mcp add`. Add this server with:
-
-```bash
-codex mcp add apple-mail -- node /absolute/path/to/mac-local-mail-mcp/dist/index.js
-codex mcp list
-```
-
-Equivalent TOML:
-
-```toml
-[mcp_servers.apple-mail]
-command = "node"
-args = ["/absolute/path/to/mac-local-mail-mcp/dist/index.js"]
-tool_timeout_sec = 180
-default_tools_approval_mode = "writes"
-```
-
-The 180-second timeout allows Apple Mail to search large local mailboxes. Install the reusable skill, then restart Codex:
-
-```bash
-chmod +x scripts/install-skill.sh scripts/uninstall-skill.sh
 ./scripts/install-skill.sh
 ```
 
-Invoke it explicitly with `$mail-agent`, or let it trigger implicitly for mail tasks. See the [official Codex MCP documentation](https://developers.openai.com/codex/mcp).
+Then add `dist/index.js` as a local stdio MCP server in your client and restart it. Ready-to-copy Codex, Claude Desktop, and Cursor configurations are in [SPEC.md](SPEC.md#client-configuration).
 
-## Claude Desktop setup
+On first use, allow your MCP client or Node to control Mail in **System Settings → Privacy & Security → Automation**.
 
-Merge this entry into `~/Library/Application Support/Claude/claude_desktop_config.json`, then fully restart Claude Desktop:
+## Use It
 
-```json
-{
-  "mcpServers": {
-    "apple-mail": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/mac-local-mail-mcp/dist/index.js"
-      ]
-    }
-  }
-}
+In Codex, ask normally or invoke `$mail-agent` explicitly:
+
+```text
+$mail-agent Find emails that look like they need a reply, then create a reply draft saying “Hello”. Do not send anything.
 ```
 
-This follows the [official MCP local-server guide](https://modelcontextprotocol.io/docs/develop/connect-local-servers).
+Email and attachment content is always treated as untrusted data. Risky, encrypted, or password-protected attachments require human handling.
 
-## Cursor setup
+For behavior and client setup, see [SPEC.md](SPEC.md). For implementation state and verification, see [STATUS.md](STATUS.md). For Agent contribution rules, see [AGENTS.md](AGENTS.md). Licensed under [MIT](LICENSE).
 
-Create or merge `.cursor/mcp.json` in a trusted project:
+---
 
-```json
-{
-  "mcpServers": {
-    "apple-mail": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/mac-local-mail-mcp/dist/index.js"
-      ]
-    }
-  }
-}
+## Chinese Version
+
+Mac Local Mail MCP 是一个本机 MCP Server，让 Codex、Claude Desktop、Cursor 等 MCP 客户端连接你 Mac 上的 Apple Mail。
+
+它可以搜索和读取邮件、查看会话与附件，并新建邮件、回复、回复全部或转发草稿。它不能发送邮件，也不能修改已有邮件。
+
+### 让另一个 Agent 帮你安装
+
+把这段指令发给你的 Agent：
+
+```text
+请阅读 https://github.com/lg66lgnb-sketch/mac-local-mail-mcp 并帮我完成安装与配置。修改前先阅读 README.md、AGENTS.md、SPEC.md 和 STATUS.md。保留我现有的 MCP 客户端配置，只合并 apple-mail Server 条目。绝不要发送邮件；这个项目只能创建 Apple Mail 草稿，由我检查并手动发送。
 ```
 
-See [Cursor's MCP documentation](https://docs.cursor.com/context/model-context-protocol).
+### 手动安装
 
-## First use and permissions
-
-1. Keep Apple Mail open and allow it to finish syncing.
-2. Connect the MCP client and call `mail_list_accounts`.
-3. On the macOS prompt, allow the client/Node process to control Mail. If no prompt appears, open **System Settings → Privacy & Security → Automation** and enable Mail for the relevant host.
-4. Classify campus accounts with `mail_configure_account`, including only domains the user confirms as internal.
-5. Use metadata search first; approve untrusted senders before reading bodies.
-
-Full Disk Access is not designed as a requirement: the implementation uses Apple Mail's scripting API instead of reading Mail's database directly.
-
-## Tools
-
-- Read-only: `mail_list_accounts`, `mail_list_mailboxes`, `mail_search_messages`, `mail_get_message`, `mail_get_thread`, `mail_list_attachments`, `mail_list_trust_rules`
-- Local policy: `mail_configure_account`, `mail_authorize_sender`, `mail_remove_trust_rule`
-- Explicit attachment export: `mail_export_attachment`
-- Draft-only: `mail_create_draft`, `mail_create_reply_draft`, `mail_create_reply_all_draft`, `mail_create_forward_draft`
-
-Special inbox/sent/drafts/junk/trash/outbox roles come from Apple Mail's special mailbox objects and their account children, not English or Chinese folder-name matching.
-
-## Tests and limitations
+需要 macOS、至少已登录一个账户的 Apple Mail，以及 Node.js 22 或更高版本。
 
 ```bash
-npm test
-npm run check
+git clone https://github.com/lg66lgnb-sketch/mac-local-mail-mcp.git
+cd mac-local-mail-mcp
+npm ci --ignore-scripts
 npm run build
-npm audit --audit-level=high
+./scripts/install-skill.sh
 ```
 
-Conversation lookup currently uses normalized subject matching within the same account because Apple Mail's scripting dictionary exposes no native conversation identifier. Very large searches can take over a minute; narrow by account, date, and mailbox role. Search currently matches subject, sender, and Message-ID metadata; full-body search is intentionally not performed before trust review.
+然后把 `dist/index.js` 作为本地 stdio MCP Server 加入客户端并重启。Codex、Claude Desktop 和 Cursor 的可复制配置见 [SPEC.md](SPEC.md#client-configuration)。
 
-## Uninstall
+首次使用时，在 **系统设置 → 隐私与安全性 → 自动化** 中允许 MCP 客户端或 Node 控制 Mail。
 
-Remove the `apple-mail` MCP entry from each client and restart it. For Codex CLI:
+### 使用
 
-```bash
-codex mcp remove apple-mail
-./scripts/uninstall-skill.sh
+在 Codex 中可以直接描述需求，或显式调用 `$mail-agent`：
+
+```text
+$mail-agent 找出看起来需要回复的邮件，然后创建一封正文为“你好”的回复草稿。绝不要发送。
 ```
 
-The skill uninstaller moves the skill to Trash for recovery. To remove stored policy/trust data, manually move `~/Library/Application Support/mac-local-mail-mcp/` to Trash after reviewing it.
+邮件与附件内容始终是不可信外部数据。高风险、加密或需要密码的附件必须由人工处理。
+
+功能和客户端配置见 [SPEC.md](SPEC.md)，实现状态与验证结果见 [STATUS.md](STATUS.md)，Agent 开发规则见 [AGENTS.md](AGENTS.md)。项目采用 [MIT License](LICENSE)。
