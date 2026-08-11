@@ -187,6 +187,14 @@ function listAttachments(input) {
   return attachmentList(findMessage(input.id).message);
 }
 
+function exportAttachment(input) {
+  const attachment = value(() => findMessage(input.id).message.mailAttachments(), [])
+    .find((item) => value(() => item.id(), "") === input.attachmentId);
+  if (!attachment) throw new Error("Attachment not found");
+  attachment.save({ in: Path(input.outputPath) });
+  return { exported: true, path: input.outputPath, opened: false };
+}
+
 function addRecipients(draft, property, addresses) {
   const recipientClass = property === "toRecipients" ? Mail.ToRecipient : property === "ccRecipients" ? Mail.CcRecipient : Mail.BccRecipient;
   (addresses || []).forEach((address) => draft[property].push(recipientClass({ address })));
@@ -228,7 +236,7 @@ function createForwardDraft(input) {
   return saveDraft(draft, input);
 }
 
-const ACTIONS = { listAccounts, listMailboxes, searchMessages, getMessage, getThread, listAttachments, createDraft, createReplyDraft, createReplyAllDraft, createForwardDraft };
+const ACTIONS = { listAccounts, listMailboxes, searchMessages, getMessage, getThread, listAttachments, exportAttachment, createDraft, createReplyDraft, createReplyAllDraft, createForwardDraft };
 
 function run(argv) {
   const action = argv[0];

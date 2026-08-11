@@ -7,6 +7,7 @@ export const ALLOWED_BRIDGE_ACTIONS = [
   "searchMessages",
   "getMessage",
   "listAttachments",
+  "exportAttachment",
   "getThread",
   "createDraft",
   "createReplyDraft",
@@ -57,6 +58,9 @@ export class MailClient {
   getMessage(id: number): Promise<unknown> { return this.executor("getMessage", { id }); }
   getThread(id: number, limit = 50): Promise<unknown> { return this.executor("getThread", { id, limit: Math.min(Math.max(limit, 1), 100) }); }
   listAttachments(id: number): Promise<unknown> { return this.executor("listAttachments", { id }); }
+  exportAttachment(id: number, attachmentId: string, outputPath: string): Promise<unknown> {
+    return this.executor("exportAttachment", { id, attachmentId, outputPath });
+  }
 
   async searchMessages(input: SearchInput): Promise<MessageSummary[]> {
     const output = await this.executor("searchMessages", {

@@ -1,8 +1,10 @@
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { lstat, realpath, stat } from "node:fs/promises";
+import { isAbsolute, join } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { FileAccountPolicyStore } from "./account-policy.js";
+import { classifyAttachment, safeAttachmentName } from "./attachments.js";
 import { MailClient } from "./mail-client.js";
 import { decideMessageAccess, FileTrustStore, parseAuthenticationResults } from "./trust.js";
 
@@ -14,6 +16,7 @@ export const TOOL_NAMES = [
   "mail_get_message",
   "mail_get_thread",
   "mail_list_attachments",
+  "mail_export_attachment",
   "mail_authorize_sender",
   "mail_list_trust_rules",
   "mail_remove_trust_rule",
@@ -34,6 +37,7 @@ interface FullMessage {
 }
 
 interface AccountInfo { id: string; emailAddresses: string[] }
+interface AttachmentInfo { id: string; name: string; mimeType: string }
 interface DraftToolInput {
   account_id: string;
   from: string;
@@ -114,6 +118,27 @@ export function registerMailTools(
   server.registerTool("mail_get_message", { description: "Read full message body and source after sender/authentication policy review.", inputSchema: { message_id: z.number().int().positive() }, annotations: readOnly }, async ({ message_id }) => json(await gatedMessage(message_id)));
   server.registerTool("mail_get_thread", { description: "List messages with the same normalized subject in the same account.", inputSchema: { message_id: z.number().int().positive(), limit: z.number().int().min(1).max(100).default(50) }, annotations: readOnly }, async ({ message_id, limit }) => json(await client.getThread(message_id, limit)));
   server.registerTool("mail_list_attachments", { description: "List attachment metadata only. Does not open, download, execute, or follow links.", inputSchema: { message_id: z.number().int().positive() }, annotations: readOnly }, async ({ message_id }) => json(await client.listAttachments(message_id)));
+  server.registerTool("mail_export_attachment", {
+    description: "Export a low-risk attachment to an existing local directory after explicit confirmation. Never opens or parses it; risky/encrypted/password-protected files require human takeover.",
+    inputSchema: {
+      message_id: z.number().int().positive(), attachment_id: z.string().min(1), destination_directory: z.string().min(1),
+      user_confirmed: z.literal(true), encrypted: z.boolean().default(false), password_required: z.boolean().default(false),
+    }, annotations: draftOnly,
+  }, async ({ message_id, attachment_id, destination_directory, encrypted, password_required }) => {
+    const attachments = await client.listAttachments(message_id) as AttachmentInfo[];
+    const attachment = attachments.find((item) => item.id === attachment_id);
+    if (!attachment) throw new Error("Attachment not found");
+    const risk = classifyAttachment({ name: attachment.name, mimeType: attachment.mimeType, encrypted, passwordRequired: password_required });
+    if (risk.action === "human_takeover") return json({ exported: false, risk, instruction: "请在 Apple Mail 中人工处理；服务器不会保存、打开、索取或破解密码。" });
+    if (!isAbsolute(destination_directory)) throw new Error("Destination directory must be absolute");
+    const directory = await realpath(destination_directory);
+    if (!(await stat(directory)).isDirectory()) throw new Error("Destination must be a directory");
+    const outputPath = join(directory, safeAttachmentName(attachment.name));
+    try { await lstat(outputPath); throw new Error("Destination file already exists"); } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+    return json({ ...(await client.exportAttachment(message_id, attachment_id, outputPath) as object), risk, warning: "附件仅导出，未打开、运行或访问其中链接。" });
+  });
 
   server.registerTool("mail_authorize_sender", {
     description: "Confirm access once, or permanently trust the exact sender address/domain. Rules never override authentication anomalies without fresh confirmation.",
