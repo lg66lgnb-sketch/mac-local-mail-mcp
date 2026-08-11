@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mail Agent"
+  short_description: "Safely read Apple Mail and create review-only drafts"
+  default_prompt: "Use $mail-agent to find mail safely and prepare an Apple Mail draft for my review."
+policy:
+  allow_implicit_invocation: true
