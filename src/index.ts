@@ -2,12 +2,14 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { registerMailTools } from "./tools.js";
 
 export const SERVER_NAME = "mac-local-mail";
 export const SERVER_VERSION = "0.1.0";
 
 export async function main(): Promise<void> {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
+  registerMailTools(server);
   await server.connect(new StdioServerTransport());
 }
 
@@ -18,4 +20,3 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
     process.exitCode = 1;
   });
 }
-

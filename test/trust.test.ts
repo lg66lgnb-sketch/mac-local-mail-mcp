@@ -34,6 +34,19 @@ test("authentication failure forces review even for a trusted sender", () => {
   assert.deepEqual(decision.allowedActions, ["allow_once", "trust_address", "trust_domain"]);
 });
 
+test("explicit one-time confirmation allows an authentication anomaly once", () => {
+  const decision = decideMessageAccess({
+    accountKind: "personal",
+    sender: "Bank <notice@bank.example>",
+    authentication: { spf: "fail", dkim: "pass", dmarc: "fail" },
+    trustRules: [],
+    allowedOnce: true,
+  });
+
+  assert.equal(decision.status, "allowed");
+  assert.equal(decision.reason, "allowed_once");
+});
+
 test("authenticated campus-internal sender is allowed without a trust rule", () => {
   const decision = decideMessageAccess({
     accountKind: "campus",

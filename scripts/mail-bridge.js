@@ -135,14 +135,17 @@ function searchMessages(input) {
   const roles = new Set(input.mailboxRoles || []);
   const limit = Math.min(Math.max(Number(input.limit) || 50, 1), 100);
   const results = [];
-  for (const record of allMailboxRecords(input.accountIds)) {
+  searchLoop: for (const record of allMailboxRecords(input.accountIds)) {
     if (roles.size && !roles.has(record.role)) continue;
     const messages = value(() => record._mailbox.messages.whose({ dateReceived: { _greaterThanEquals: from } })(), []);
     for (const message of messages) {
       const item = summary(message, record);
       if (to && item.dateReceived && new Date(item.dateReceived) > to) continue;
       const haystack = `${item.subject}\n${item.sender}\n${item.messageId}`.toLocaleLowerCase();
-      if (!query || haystack.includes(query)) results.push(item);
+      if (!query || haystack.includes(query)) {
+        results.push(item);
+        if (results.length >= limit && !query) break searchLoop;
+      }
     }
   }
   return results
@@ -184,7 +187,48 @@ function listAttachments(input) {
   return attachmentList(findMessage(input.id).message);
 }
 
-const ACTIONS = { listAccounts, listMailboxes, searchMessages, getMessage, getThread, listAttachments };
+function addRecipients(draft, property, addresses) {
+  const recipientClass = property === "toRecipients" ? Mail.ToRecipient : property === "ccRecipients" ? Mail.CcRecipient : Mail.BccRecipient;
+  (addresses || []).forEach((address) => draft[property].push(recipientClass({ address })));
+}
+
+function addOutgoingAttachments(draft, paths) {
+  (paths || []).forEach((path) => draft.content.attachments.push(Mail.Attachment({ fileName: Path(path) })));
+}
+
+function saveDraft(draft, input) {
+  draft.sender = input.from;
+  if (input.body !== undefined) draft.content = input.body;
+  addOutgoingAttachments(draft, input.attachment_paths);
+  draft.save();
+  return { draftSaved: true, outgoingId: value(() => draft.id(), null), subject: value(() => draft.subject(), ""), sender: value(() => draft.sender(), ""), safety: "saved_to_apple_mail_drafts_never_sent" };
+}
+
+function createDraft(input) {
+  const draft = Mail.OutgoingMessage({ subject: input.subject, content: input.body, sender: input.from, visible: false });
+  Mail.outgoingMessages.push(draft);
+  addRecipients(draft, "toRecipients", input.to);
+  addRecipients(draft, "ccRecipients", input.cc);
+  addRecipients(draft, "bccRecipients", input.bcc);
+  return saveDraft(draft, { ...input, body: undefined });
+}
+
+function createReplyDraft(input) {
+  return saveDraft(Mail.reply(findMessage(input.message_id).message, { openingWindow: false, replyToAll: false }), input);
+}
+
+function createReplyAllDraft(input) {
+  return saveDraft(Mail.reply(findMessage(input.message_id).message, { openingWindow: false, replyToAll: true }), input);
+}
+
+function createForwardDraft(input) {
+  const draft = Mail.forward(findMessage(input.message_id).message, { openingWindow: false });
+  addRecipients(draft, "toRecipients", input.to);
+  addRecipients(draft, "ccRecipients", input.cc);
+  return saveDraft(draft, input);
+}
+
+const ACTIONS = { listAccounts, listMailboxes, searchMessages, getMessage, getThread, listAttachments, createDraft, createReplyDraft, createReplyAllDraft, createForwardDraft };
 
 function run(argv) {
   const action = argv[0];

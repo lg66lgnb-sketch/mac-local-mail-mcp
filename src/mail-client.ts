@@ -8,7 +8,6 @@ export const ALLOWED_BRIDGE_ACTIONS = [
   "getMessage",
   "listAttachments",
   "getThread",
-  "exportAttachment",
   "createDraft",
   "createReplyDraft",
   "createReplyAllDraft",

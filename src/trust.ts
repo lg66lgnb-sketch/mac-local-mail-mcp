@@ -70,11 +70,10 @@ export function decideMessageAccess(input: AccessInput): AccessDecision {
   const senderDomain = senderAddress.split("@")[1] ?? "";
   const base = { senderAddress, senderDomain };
 
+  if (input.allowedOnce) return { ...base, status: "allowed", reason: "allowed_once" };
   if (AUTH_KEYS.some((key) => input.authentication[key] === "fail")) {
     return { ...base, status: "review", reason: "authentication_anomaly", allowedActions: ["allow_once", "trust_address", "trust_domain"] };
   }
-  if (input.allowedOnce) return { ...base, status: "allowed", reason: "allowed_once" };
-
   const authenticated = isAuthenticated(input.authentication);
   const trusted = input.trustRules.some((rule) =>
     rule.scope === "address" ? rule.value === senderAddress : domainMatches(senderDomain, rule.value),
