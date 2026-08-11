@@ -5,6 +5,7 @@ export const ALLOWED_BRIDGE_ACTIONS = [
   "listAccounts",
   "listMailboxes",
   "searchMessages",
+  "getMessageMetadata",
   "getMessage",
   "listAttachments",
   "exportAttachment",
@@ -55,6 +56,7 @@ export class MailClient {
 
   listAccounts(): Promise<unknown> { return this.executor("listAccounts", {}); }
   listMailboxes(accountId?: string): Promise<unknown> { return this.executor("listMailboxes", { accountId }); }
+  getMessageMetadata(id: number): Promise<unknown> { return this.executor("getMessageMetadata", { id }); }
   getMessage(id: number): Promise<unknown> { return this.executor("getMessage", { id }); }
   getThread(id: number, limit = 50): Promise<unknown> { return this.executor("getThread", { id, limit: Math.min(Math.max(limit, 1), 100) }); }
   listAttachments(id: number): Promise<unknown> { return this.executor("listAttachments", { id }); }

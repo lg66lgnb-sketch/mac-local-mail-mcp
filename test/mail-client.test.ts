@@ -25,3 +25,16 @@ test("client rejects unknown bridge operations", async () => {
   const client = new MailClient(async () => ({}));
   assert.throws(() => client.runUnsafeForTest("sendMessage", {}), /not allowed/);
 });
+
+test("message metadata can be fetched without requesting body content", async () => {
+  const actions: string[] = [];
+  const client = new MailClient(async (action) => {
+    actions.push(action);
+    return { id: 7, sender: "x@example.com", headers: "Authentication-Results: dmarc=pass" };
+  });
+
+  const metadata = await client.getMessageMetadata(7) as { content?: string };
+
+  assert.deepEqual(actions, ["getMessageMetadata"]);
+  assert.equal(metadata.content, undefined);
+});

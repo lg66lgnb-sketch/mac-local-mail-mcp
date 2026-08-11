@@ -153,7 +153,7 @@ function searchMessages(input) {
     .slice(0, limit);
 }
 
-function getMessage(input) {
+function getMessageMetadata(input) {
   const found = findMessage(input.id);
   const message = found.message;
   return {
@@ -163,19 +163,28 @@ function getMessage(input) {
     bcc: recipientList(message, "bccRecipients"),
     replyTo: value(() => message.replyTo(), ""),
     headers: value(() => message.allHeaders(), ""),
-    content: String(value(() => message.content(), "")),
-    source: value(() => message.source(), ""),
     attachments: attachmentList(message),
     security: { untrustedExternalContent: true },
   };
 }
 
+function getMessage(input) {
+  const found = findMessage(input.id);
+  return {
+    ...getMessageMetadata(input),
+    content: String(value(() => found.message.content(), "")),
+    source: value(() => found.message.source(), ""),
+  };
+}
+
 function getThread(input) {
   const found = findMessage(input.id);
-  const subject = value(() => found.message.subject(), "").replace(/^\s*((re|fw|fwd)\s*:\s*)+/i, "").trim().toLocaleLowerCase();
+  const coreSubject = value(() => found.message.subject(), "").replace(/^\s*((re|fw|fwd)\s*:\s*)+/i, "").trim();
+  const subject = coreSubject.toLocaleLowerCase();
+  if (!subject) return [summary(found.message, found.mailboxRecord)];
   const candidates = [];
   for (const record of allMailboxRecords([found.mailboxRecord.accountId])) {
-    for (const message of value(() => record._mailbox.messages(), [])) {
+    for (const message of value(() => record._mailbox.messages.whose({ subject: { _contains: coreSubject } })(), [])) {
       const candidateSubject = value(() => message.subject(), "").replace(/^\s*((re|fw|fwd)\s*:\s*)+/i, "").trim().toLocaleLowerCase();
       if (candidateSubject === subject) candidates.push(summary(message, record));
     }
@@ -204,9 +213,12 @@ function addOutgoingAttachments(draft, paths) {
   (paths || []).forEach((path) => draft.content.attachments.push(Mail.Attachment({ fileName: Path(path) })));
 }
 
-function saveDraft(draft, input) {
+function saveDraft(draft, input, preserveGeneratedContent) {
   draft.sender = input.from;
-  if (input.body !== undefined) draft.content = input.body;
+  if (input.body !== undefined) {
+    const generated = preserveGeneratedContent ? String(value(() => draft.content(), "")) : "";
+    draft.content = generated ? `${input.body}\n\n${generated}` : input.body;
+  }
   addOutgoingAttachments(draft, input.attachment_paths);
   draft.save();
   return { draftSaved: true, outgoingId: value(() => draft.id(), null), subject: value(() => draft.subject(), ""), sender: value(() => draft.sender(), ""), safety: "saved_to_apple_mail_drafts_never_sent" };
@@ -218,25 +230,25 @@ function createDraft(input) {
   addRecipients(draft, "toRecipients", input.to);
   addRecipients(draft, "ccRecipients", input.cc);
   addRecipients(draft, "bccRecipients", input.bcc);
-  return saveDraft(draft, { ...input, body: undefined });
+  return saveDraft(draft, { ...input, body: undefined }, false);
 }
 
 function createReplyDraft(input) {
-  return saveDraft(Mail.reply(findMessage(input.message_id).message, { openingWindow: false, replyToAll: false }), input);
+  return saveDraft(Mail.reply(findMessage(input.message_id).message, { openingWindow: false, replyToAll: false }), input, true);
 }
 
 function createReplyAllDraft(input) {
-  return saveDraft(Mail.reply(findMessage(input.message_id).message, { openingWindow: false, replyToAll: true }), input);
+  return saveDraft(Mail.reply(findMessage(input.message_id).message, { openingWindow: false, replyToAll: true }), input, true);
 }
 
 function createForwardDraft(input) {
   const draft = Mail.forward(findMessage(input.message_id).message, { openingWindow: false });
   addRecipients(draft, "toRecipients", input.to);
   addRecipients(draft, "ccRecipients", input.cc);
-  return saveDraft(draft, input);
+  return saveDraft(draft, input, true);
 }
 
-const ACTIONS = { listAccounts, listMailboxes, searchMessages, getMessage, getThread, listAttachments, exportAttachment, createDraft, createReplyDraft, createReplyAllDraft, createForwardDraft };
+const ACTIONS = { listAccounts, listMailboxes, searchMessages, getMessageMetadata, getMessage, getThread, listAttachments, exportAttachment, createDraft, createReplyDraft, createReplyAllDraft, createForwardDraft };
 
 function run(argv) {
   const action = argv[0];
