@@ -2,6 +2,11 @@
   "name": "mac-local-mail-mcp",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lg66lgnb-sketch/mac-local-mail-mcp.git"
+  },
   "description": "Read-only Apple Mail MCP server with draft-only composition tools",
   "type": "module",
   "bin": {

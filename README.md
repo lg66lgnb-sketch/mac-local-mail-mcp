@@ -19,7 +19,7 @@ Trust/account data is stored with user-only permissions under `~/Library/Applica
 - Automation permission for the MCP host/Node/Terminal to control Mail
 
 ```bash
-cd /Users/uiye2048/Documents/01-Projects/01-Development/Mac_Local_Mail-MCP
+cd /absolute/path/to/mac-local-mail-mcp
 npm ci --ignore-scripts
 npm run build
 npm test
@@ -32,7 +32,7 @@ The lockfile is authoritative. Dependency installation scripts are disabled.
 Official Codex documentation supports local stdio servers in `~/.codex/config.toml` and also provides `codex mcp add`. Add this server with:
 
 ```bash
-codex mcp add apple-mail -- node /Users/uiye2048/Documents/01-Projects/01-Development/Mac_Local_Mail-MCP/dist/index.js
+codex mcp add apple-mail -- node /absolute/path/to/mac-local-mail-mcp/dist/index.js
 codex mcp list
 ```
 
@@ -41,7 +41,7 @@ Equivalent TOML:
 ```toml
 [mcp_servers.apple-mail]
 command = "node"
-args = ["/Users/uiye2048/Documents/01-Projects/01-Development/Mac_Local_Mail-MCP/dist/index.js"]
+args = ["/absolute/path/to/mac-local-mail-mcp/dist/index.js"]
 tool_timeout_sec = 180
 default_tools_approval_mode = "writes"
 ```
@@ -65,7 +65,7 @@ Merge this entry into `~/Library/Application Support/Claude/claude_desktop_confi
     "apple-mail": {
       "command": "node",
       "args": [
-        "/Users/uiye2048/Documents/01-Projects/01-Development/Mac_Local_Mail-MCP/dist/index.js"
+        "/absolute/path/to/mac-local-mail-mcp/dist/index.js"
       ]
     }
   }
@@ -84,7 +84,7 @@ Create or merge `.cursor/mcp.json` in a trusted project:
     "apple-mail": {
       "command": "node",
       "args": [
-        "/Users/uiye2048/Documents/01-Projects/01-Development/Mac_Local_Mail-MCP/dist/index.js"
+        "/absolute/path/to/mac-local-mail-mcp/dist/index.js"
       ]
     }
   }
