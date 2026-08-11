@@ -1,0 +1,36 @@
+{
+  "name": "mac-local-mail-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Read-only Apple Mail MCP server with draft-only composition tools",
+  "type": "module",
+  "bin": {
+    "mac-local-mail-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "scripts"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/index.js",
+    "test": "node --test --import tsx 'test/**/*.test.ts'",
+    "test:coverage": "c8 npm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3",
+    "c8": "10.1.3",
+    "tsx": "4.20.6",
+    "typescript": "5.9.2"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "npm@10.9.2"
+}
+
