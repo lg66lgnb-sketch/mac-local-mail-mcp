@@ -137,7 +137,11 @@ function searchMessages(input) {
   const results = [];
   searchLoop: for (const record of allMailboxRecords(input.accountIds)) {
     if (roles.size && !roles.has(record.role)) continue;
-    const messages = value(() => record._mailbox.messages.whose({ dateReceived: { _greaterThanEquals: from } })(), []);
+    const selector = { dateReceived: { _greaterThanEquals: from } };
+    if (input.sender) selector.sender = { _contains: String(input.sender) };
+    if (input.subject) selector.subject = { _contains: String(input.subject) };
+    if (input.messageId) selector.messageId = { _contains: String(input.messageId) };
+    const messages = value(() => record._mailbox.messages.whose(selector)(), []);
     for (const message of messages) {
       const item = summary(message, record);
       if (to && item.dateReceived && new Date(item.dateReceived) > to) continue;

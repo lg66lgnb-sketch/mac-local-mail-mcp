@@ -38,6 +38,9 @@ export interface MessageSummary {
 
 export interface SearchInput {
   query?: string;
+  sender?: string;
+  subject?: string;
+  messageId?: string;
   dateFrom?: string;
   dateTo?: string;
   accountIds?: string[];
@@ -68,6 +71,9 @@ export class MailClient {
     const output = await this.executor("searchMessages", {
       ...input,
       query: input.query?.slice(0, 500) ?? "",
+      sender: input.sender?.slice(0, 320),
+      subject: input.subject?.slice(0, 500),
+      messageId: input.messageId?.slice(0, 998),
       limit: Math.min(Math.max(input.limit ?? 50, 1), 100),
     });
     return output as MessageSummary[];

@@ -134,7 +134,7 @@ Draft-only composition:
 
 Inbox, sent, drafts, junk, trash, and outbox roles come from Apple Mail's special mailbox objects and their account children. They never depend on English, Chinese, or provider-specific folder names.
 
-Search returns metadata without reading the full body. It can narrow by account, mailbox role, date, subject, sender, and Message-ID. Full-message access is evaluated separately through the trust policy.
+Search returns metadata without reading the full body. Structured sender, subject, and Message-ID filters are applied by Apple Mail before metadata is read; account, mailbox role, and date filters further limit the scan. The general `query` field remains available for residual matching across subject, sender, and Message-ID, but is slower. Full-message access is evaluated separately through the trust policy.
 
 Conversation lookup currently matches normalized subjects within the same account because Apple Mail's scripting dictionary does not expose a native conversation identifier.
 
